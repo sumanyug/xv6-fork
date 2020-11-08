@@ -392,3 +392,42 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 //PAGEBREAK!
 // Blank page.
 
+int getNumVirtPages(void)
+{
+  // cprintf("Size: %d\n", myproc()->sz);
+  return myproc() -> sz / PGSIZE;
+
+  
+}
+int getNumPhysPages(void)
+{
+  pde_t *pgdir = myproc() -> pgdir;
+  pte_t *pte = 0;
+  char *va = 0;
+  int count = 0;
+  int count2 = 0;
+  for(va = 0; (int)va< myproc() -> sz; va += PGSIZE){
+    pte = walkpgdir(pgdir, va, 0);
+
+    if (*pte) count++;
+    else count2++;
+  }
+  // cprintf("Count2: %d\n", count2);
+
+  return count;
+
+}
+int getNumPTPages(void)
+{
+  // pde_t *pgdir = myproc() -> pgdir;
+  // pte_t *pte = 0;
+  // char *va = 0;
+  // int count = 0;
+  // int count2 = 0;
+  // pte_t old_pte = -1;
+  // for(va = 0; (int)va< KERNBASE + PHYSTOP; va += PGSIZE){
+  //   pte = walkpgdir(pgdir, va, 0);
+  //   if (*pte) count++;
+  // }
+  return 0;
+}

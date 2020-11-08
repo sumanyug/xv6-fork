@@ -89,3 +89,20 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+int sys_getNumFreePages(void)
+{
+  return getNumFreePages();
+}
+int sys_getNumVirtPages(void)
+{
+  return getNumVirtPages();
+}
+int sys_getNumPhysPages(void)
+{
+  return getNumPhysPages();
+}
+
+int sys_getNumPTPages(void)
+{
+  return 0;
+}

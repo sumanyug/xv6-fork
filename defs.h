@@ -68,6 +68,7 @@ char*           kalloc(void);
 void            kfree(char*);
 void            kinit1(void*, void*);
 void            kinit2(void*, void*);
+int             getNumFreePages(void);
 
 // kbd.c
 void            kbdintr(void);
@@ -185,6 +186,8 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
-
+int             getNumVirtPages(void);
+int             getNumPhysPages(void);
+int             getNumPTPages(void);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

@@ -103,7 +103,10 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
-
+extern int sys_getNumFreePages(void);
+extern int sys_getNumVirtPages(void);
+extern int sys_getNumPhysPages(void);
+extern int sys_getNumPTPages(void);
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -126,6 +129,10 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_getNumFreePages] sys_getNumFreePages,
+[SYS_getNumVirtPages] sys_getNumVirtPages,
+[SYS_getNumPhysPages] sys_getNumPhysPages,
+[SYS_getNumPTPages] sys_getNumPTPages
 };
 
 void
