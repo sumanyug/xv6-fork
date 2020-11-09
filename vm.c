@@ -431,3 +431,101 @@ int getNumPTPages(void)
   // }
   return 0;
 }
+
+uint get_index_pte(char* v){
+  if((uint)v > KERNBASE){
+    return V2P(v)/PGSIZE;
+  }
+  return PTE_ADDR(*walkpgdir(myproc() -> pgdir, v, 0))/PGSIZE;
+}
+
+pde_t *copyuvm_cow(pde_t *pgdir, int sz){
+  pde_t *d;
+  pte_t *pte;
+  uint pa, i, flags;
+  if((d = setupkvm()) == 0)
+    return 0;
+  for(i = 0; i < sz; i += PGSIZE){
+    cprintf("Am I ever being entered?");
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    *pte =  (*pte & ~PTE_W);
+
+    pa = PTE_ADDR(*pte);
+    flags = PTE_FLAGS(*pte);
+    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
+      goto bad;
+    lcr3(V2P(pgdir));
+
+    increment_page_num((char*)i);
+    cprintf("Number of pointers to the page with virtual address = %d, Physical index = %d = %d\n", i, pa>>PTXSHIFT, get_phys_count((char*)i));
+    cprintf("Entry in the page directory:%d\n", (*pte)>>PTXSHIFT);
+
+  }
+  lcr3(V2P(pgdir));
+  return d;
+
+bad:
+  freevm(d);
+  lcr3(V2P(pgdir));
+  return 0;
+}
+int handle_cow_new_page(){
+  uint addr;
+  pte_t *pte;
+
+  uint pa;
+  //find the address of the page causing the page fault
+  addr = rcr2();
+  // addr = PGROUNDDOWN(addr);
+  cprintf("Address causing page fault: %d\n", addr);
+
+  if ( addr >=KERNBASE){
+    panic("cow_exception_handler:Kernel code trying to be written on");
+  }
+  pte = walkpgdir(myproc() -> pgdir, (void*) addr, 0);
+  pa = PTE_ADDR(*pte);
+  uint index = get_index_pte((char*)pte);
+  cprintf("Physical address of the page: %d\n", index);
+
+  if(!(*pte & PTE_P)){
+    panic("cow_exception_handler:Page not present");
+  }
+  else{
+    if(!(*pte & PTE_U)){
+      panic("cow_exception_handler:Page not for user");
+    }
+    else{
+      int num_count =get_phys_count((char*)addr);
+      cprintf("Number of pointers to the old page before I start editing:%d\n",num_count);
+
+      if(num_count >1){
+        decrement_page_num((char*)addr);
+        char* mem;
+        if((mem = kalloc()) == 0){
+          freevm(myproc() -> pgdir);
+          return 0;
+        }        
+        memmove(mem, (char*)P2V(pa),PGSIZE);
+        *pte = V2P(mem)|PTE_W|PTE_U|PTE_P;
+        num_count--;
+
+
+      }
+      else if (num_count == 1){
+        *pte = (*pte | PTE_W);
+      }
+      else{
+        panic("cow_exception_handler: no references to the page exist\n");
+      }
+      cprintf("Number of pointers to the old page:%d\n",num_count);
+      lcr3(V2P(myproc() -> pgdir));
+      return 1;
+    }
+  }
+  
+  return 0;
+  
+}

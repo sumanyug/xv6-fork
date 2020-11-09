@@ -69,7 +69,9 @@ void            kfree(char*);
 void            kinit1(void*, void*);
 void            kinit2(void*, void*);
 int             getNumFreePages(void);
-
+uint            increment_page_num(char*);
+uint            get_phys_count(char*);
+uint            decrement_page_num(char*);
 // kbd.c
 void            kbdintr(void);
 
@@ -189,5 +191,8 @@ void            clearpteu(pde_t *pgdir, char *uva);
 int             getNumVirtPages(void);
 int             getNumPhysPages(void);
 int             getNumPTPages(void);
+uint            get_index_pte(char*);
+pde_t*          copyuvm_cow(pde_t*, int);
+int             handle_cow_new_page(void);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

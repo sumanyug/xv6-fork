@@ -8,7 +8,6 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "spinlock.h"
-
 void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
                    // defined by the kernel linker script in kernel.ld
@@ -21,6 +20,7 @@ struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
+  int num_phys_page[PHYSTOP/PGSIZE];
 } kmem;
 
 // Initialization happens in two phases.
@@ -48,8 +48,10 @@ freerange(void *vstart, void *vend)
 {
   char *p;
   p = (char*)PGROUNDUP((uint)vstart);
-  for(; p + PGSIZE <= (char*)vend; p += PGSIZE)
-    kfree(p);
+  for(; p + PGSIZE <= (char*)vend; p += PGSIZE){
+      kfree(p);
+      kmem.num_phys_page[get_index_pte(p)] = 0;
+  }
 }
 //PAGEBREAK: 21
 // Free the page of physical memory pointed at by v,
@@ -64,14 +66,24 @@ kfree(char *v)
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  // Fill with junk to catch dangling refs.
-  memset(v, 1, PGSIZE);
-
+  uint pte_num;
+  pte_num = get_index_pte(v);
   if(kmem.use_lock)
     acquire(&kmem.lock);
-  r = (struct run*)v;
-  r->next = kmem.freelist;
-  kmem.freelist = r;
+  // cprintf("Subtracting: %d\n",pte_num);
+  if(pte_num  == 0){
+    panic("kfree: pte number could not be obtained");
+  }
+  kmem.num_phys_page[pte_num]--;
+  if(kmem.num_phys_page[pte_num] < 0){
+    kmem.num_phys_page[pte_num] = 0;
+  }
+  if(kmem.num_phys_page[pte_num] == 0){
+    memset(v, 1, PGSIZE);
+    r = (struct run*)v;
+    r->next = kmem.freelist;
+    kmem.freelist = r;
+  }
   if(kmem.use_lock)
     release(&kmem.lock);
 }
@@ -87,8 +99,11 @@ kalloc(void)
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r){
+    uint index = get_index_pte((char*)r);
+    kmem.num_phys_page[index] = 1;
     kmem.freelist = r->next;
+  }
   if(kmem.use_lock)
     release(&kmem.lock);
   return (char*)r;
@@ -112,4 +127,42 @@ getNumFreePages(void)
 
   return count;
 
+}
+
+uint increment_page_num(char* virt_addr){
+  uint pte_num = get_index_pte(virt_addr);
+  uint answer = 0;
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+  kmem.num_phys_page[pte_num] ++;
+  answer = kmem.num_phys_page[pte_num];
+  if(kmem.use_lock)
+    release(&kmem.lock);
+  return answer;
+}
+
+uint get_phys_count(char* virt_addr){
+  uint pte_num = get_index_pte(virt_addr);
+  uint answer = 0;
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+  answer = kmem.num_phys_page[pte_num];
+  if(kmem.use_lock)
+    release(&kmem.lock);
+  return answer;
+
+}
+uint decrement_page_num(char* virt_addr){
+  uint pte_num = get_index_pte(virt_addr);
+
+  uint answer = 0;
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+  kmem.num_phys_page[pte_num] --;
+  if (kmem.num_phys_page[pte_num] < 0)
+    kmem.num_phys_page[pte_num] = 0;
+  answer = kmem.num_phys_page[pte_num];
+  if(kmem.use_lock)
+    release(&kmem.lock);
+  return answer;
 }

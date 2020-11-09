@@ -87,6 +87,11 @@ trap(struct trapframe *tf)
       panic("trap");
     }
     // In user space, assume process misbehaved.
+    if(tf -> trapno == T_PGFLT){
+      cprintf("Entered_trap\n");
+      int err_code = handle_cow_new_page();
+      if(err_code) return;
+    }
     cprintf("pid %d %s: trap %d err %d on cpu %d "
             "eip 0x%x addr 0x%x--kill proc\n",
             myproc()->pid, myproc()->name, tf->trapno,
