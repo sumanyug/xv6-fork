@@ -394,8 +394,12 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 
 int getNumVirtPages(void)
 {
-  // cprintf("Size: %d\n", myproc()->sz);
-  return myproc() -> sz / PGSIZE;
+  // ////cprintf("Size: %d\n", myproc()->sz);
+  uint sz = myproc() -> sz;
+  if(sz %PGSIZE == 0)
+    return  sz / PGSIZE;
+  else
+    return sz/ PGSIZE +1 ;
 
   
 }
@@ -406,34 +410,36 @@ int getNumPhysPages(void)
   char *va = 0;
   int count = 0;
   int count2 = 0;
-  for(va = 0; (int)va< myproc() -> sz; va += PGSIZE){
+  for(va = 0; (uint)va< myproc() -> sz; va += PGSIZE){
     pte = walkpgdir(pgdir, va, 0);
 
     if (*pte) count++;
     else count2++;
   }
-  // cprintf("Count2: %d\n", count2);
+  // ////cprintf("Count2: %d\n", count2);
 
   return count;
 
 }
 int getNumPTPages(void)
 {
-  // pde_t *pgdir = myproc() -> pgdir;
-  // pte_t *pte = 0;
-  // char *va = 0;
-  // int count = 0;
-  // int count2 = 0;
-  // pte_t old_pte = -1;
-  // for(va = 0; (int)va< KERNBASE + PHYSTOP; va += PGSIZE){
-  //   pte = walkpgdir(pgdir, va, 0);
-  //   if (*pte) count++;
-  // }
-  return 0;
+  pde_t *pgdir = myproc() -> pgdir;
+  int count = 1;
+  // uint old_pti = -1;
+  // uint curr_pti = 0;
+  uint inc = 0;
+  for(pgdir = myproc() -> pgdir; inc < 1024; pgdir++){
+    inc++;
+    if(*pgdir & PTE_P)
+      count++;
+
+  }
+
+  return count;
 }
 
 uint get_index_pte(char* v){
-  if((uint)v > KERNBASE){
+  if((uint)v >= KERNBASE){
     return V2P(v)/PGSIZE;
   }
   return PTE_ADDR(*walkpgdir(myproc() -> pgdir, v, 0))/PGSIZE;
@@ -446,7 +452,7 @@ pde_t *copyuvm_cow(pde_t *pgdir, int sz){
   if((d = setupkvm()) == 0)
     return 0;
   for(i = 0; i < sz; i += PGSIZE){
-    cprintf("Am I ever being entered?");
+    // ////cprintf("Am I ever being entered?");
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
@@ -460,8 +466,8 @@ pde_t *copyuvm_cow(pde_t *pgdir, int sz){
     lcr3(V2P(pgdir));
 
     increment_page_num((char*)i);
-    cprintf("Number of pointers to the page with virtual address = %d, Physical index = %d = %d\n", i, pa>>PTXSHIFT, get_phys_count((char*)i));
-    cprintf("Entry in the page directory:%d\n", (*pte)>>PTXSHIFT);
+    ////cprintf("Number of pointers to the page with virtual address = %d, Physical index = %d = %d\n", i, pa>>PTXSHIFT, get_phys_count((char*)i));
+    ////cprintf("Entry in the page directory:%d\n", (*pte)>>PTXSHIFT);
 
   }
   lcr3(V2P(pgdir));
@@ -480,15 +486,15 @@ int handle_cow_new_page(){
   //find the address of the page causing the page fault
   addr = rcr2();
   // addr = PGROUNDDOWN(addr);
-  cprintf("Address causing page fault: %d\n", addr);
+  ////cprintf("Address causing page fault: %d\n", addr);
 
   if ( addr >=KERNBASE){
     panic("cow_exception_handler:Kernel code trying to be written on");
   }
   pte = walkpgdir(myproc() -> pgdir, (void*) addr, 0);
   pa = PTE_ADDR(*pte);
-  uint index = get_index_pte((char*)pte);
-  cprintf("Physical address of the page: %d\n", index);
+  // uint index = get_index_pte((char*)pte);
+  ////cprintf("Physical address of the page: %d\n", index);
 
   if(!(*pte & PTE_P)){
     panic("cow_exception_handler:Page not present");
@@ -499,7 +505,7 @@ int handle_cow_new_page(){
     }
     else{
       int num_count =get_phys_count((char*)addr);
-      cprintf("Number of pointers to the old page before I start editing:%d\n",num_count);
+      ////cprintf("Number of pointers to the old page before I start editing:%d\n",num_count);
 
       if(num_count >1){
         decrement_page_num((char*)addr);
@@ -520,7 +526,7 @@ int handle_cow_new_page(){
       else{
         panic("cow_exception_handler: no references to the page exist\n");
       }
-      cprintf("Number of pointers to the old page:%d\n",num_count);
+      ////cprintf("Number of pointers to the old page:%d\n",num_count);
       lcr3(V2P(myproc() -> pgdir));
       return 1;
     }

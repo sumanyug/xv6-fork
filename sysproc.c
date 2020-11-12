@@ -104,5 +104,5 @@ int sys_getNumPhysPages(void)
 
 int sys_getNumPTPages(void)
 {
-  return 0;
+  return getNumPTPages();
 }

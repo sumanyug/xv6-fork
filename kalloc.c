@@ -70,7 +70,7 @@ kfree(char *v)
   pte_num = get_index_pte(v);
   if(kmem.use_lock)
     acquire(&kmem.lock);
-  // cprintf("Subtracting: %d\n",pte_num);
+  // //cprintf("Subtracting: %d\n",pte_num);
   if(pte_num  == 0){
     panic("kfree: pte number could not be obtained");
   }
